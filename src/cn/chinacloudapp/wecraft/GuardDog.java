@@ -44,7 +44,7 @@ public class GuardDog extends HttpServlet {
 				
 			targetType = list.get(1);
 			targetId = request.getParameter(targetType).toString();
-			targetType = sourceType.contains("AA") ? "AA.AuId" : "Id";
+			targetType = targetType.contains("AA") ? "AA.AuId" : "Id";
 			
 		} catch (NullPointerException e) {
 			e.printStackTrace();
@@ -58,15 +58,16 @@ public class GuardDog extends HttpServlet {
 	  	List<ArrayList<String>> ret = path.doDistribute(sourceType, sourceId, targetType, targetId);
 	  	long end = System.currentTimeMillis();	
 	 	System.out.println(end - start);
+	 	System.out.println("api_coutn: " + PathFetch.api_count);
+	 	System.out.println("path_count: " + PathFetch.count);
 	 	
-	 	
-	 	JSONArray arrayObj = new JSONArray();
+	 	ret  = new ArrayList(new HashSet(ret));
+	 	JSONArray arrayObj = new JSONArray(ret);
 	 	//out.print("sourceType:" + sourceType + "<br>sourceId:" + sourceId);
 	 	//out.print("<br>");
 	 	//out.print("targetType:" + targetType + "<br>targetId:" + targetId);
 	 	//out.print("<br>");
 	 	//out.print(arrayObj);
-	 	System.out.println(PathFetch.count);
 	 	out.print(ret);
 	 	out.flush();
 	 	out.close();

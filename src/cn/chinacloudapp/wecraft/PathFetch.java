@@ -13,12 +13,15 @@ public class PathFetch {
 	//	&attributes=Id,C.CId,RId,AA.AuId,AA.AfId,F.FId,J.JId
 	//	&subscription-key=f7cc29509a8443c5b3a5e56b0e38b5a6
 	public static int count = 0;
+	public static int api_count = 0;
+	public static Map<String, String> cache = new HashMap<String, String>();
+	private long start = System.currentTimeMillis();
 	private static List<ArrayList<String>> ret = new ArrayList<ArrayList<String>>();
 	private static Map<String, String> vis = new HashMap<String, String>();
 	private String urlHead = "https://oxfordhk.azure-api.net/academic/v1.0/";
 	private String urlAction = "evaluate";
 	private String urlExpression = "?expr=";
-	private String urlAttribute = "&attributes=Id,C.CId,RId,AA.AuId,AA.AfId,F.FId,J.JId";	
+	private String urlAttribute = "&attributes=Id,C.CId,RId,AA.AuId,AA.AfId,F.FId,J.JId";
 	private String urlKey = "&subscription-key=f7cc29509a8443c5b3a5e56b0e38b5a6";
 	
 	public static <T> ArrayList<T> deepCopy(ArrayList<T> src) {  
@@ -43,6 +46,7 @@ public class PathFetch {
 	
 	public List<ArrayList<String>> doDistribute(String sourceType, String sourceId, String targetType,String targetId) 
 	{
+		ret = new ArrayList<ArrayList<String>>();
 		ArrayList<String> list = new ArrayList<String>();
 		list.add(sourceId);
 		vis.put(sourceId, "0");
@@ -53,72 +57,70 @@ public class PathFetch {
 	
 	public void doCalculate(ArrayList<String> parent, String sourceType, String sourceId, String targetType, String targetId, int depth)
 	{ 
-		if (depth >= 3 && PathFetch.count > 5)
+		if (depth >= 3 || System.currentTimeMillis() - this.start > 4 * 60 *1000)
 			return;
 		
-		String source = fetchContent(sourceType, sourceId);
+		String source = this.fetchContent(sourceType, sourceId);
 		if(source.contains("statusCode") || source.contains("error"))
 			return;
+		
 		try {
 			Map<String, String> total = JsonHelper.toMap(source);
+			
 			if (total.containsKey("entities")) {
 				ArrayList<String> entity = JsonHelper.toList(total.get("entities"));
 				for (String e : entity) {
 					Map<String, String> en = JsonHelper.toMap(e);
+					String Id = "";
 					if (en.containsKey("Id")) {
-						ArrayList<String> son = PathFetch.deepCopy(parent);
-						String Id = en.get("Id");
-						justify(son, "Id", Id, sourceId, targetType, targetId, depth);
+						 Id = en.get("Id");
+						this.justify(parent, "Id", Id, sourceId, targetType, targetId, depth);
 					}
+					if(!sourceType.equals("Id")) {
+						depth ++; parent.add(Id);
+					}
+					
 					if (en.containsKey("RId")) {
 						ArrayList<String> rid = JsonHelper.toList(en.get("RId"));
 						for(String r : rid) {
-							ArrayList<String> son = PathFetch.deepCopy(parent);
-							justify(son, "RId", r, sourceId, targetType, targetId, depth);
+							this.justify(parent, "RId", r, sourceId, targetType, targetId, depth);
 						}
 					}
 					if (en.containsKey("AA")) {
 						ArrayList<String> aa = JsonHelper.toList(en.get("AA"));
 						for(String aaDetail : aa) {
 							Map<String, String> detail = JsonHelper.toMap(aaDetail);
-							if (detail.containsKey("AuId")) {
-								ArrayList<String> son = PathFetch.deepCopy(parent);
-								justify(son, "AA.AuId", detail.get("AuId"), sourceId, targetType, targetId, depth);
+							if (detail.containsKey("AuId")) {								
+								this.justify(parent, "AA.AuId", detail.get("AuId"), sourceId, targetType, targetId, depth);
 							}
-								
-							if (detail.containsKey("AfId")) {
-								ArrayList<String> son = PathFetch.deepCopy(parent);
-								justify(son, "AA.AfId", detail.get("AfId"), sourceId, targetType, targetId, depth);
-							}
-								
+							if (detail.containsKey("AfId")) {								
+								this.justify(parent, "AA.AfId", detail.get("AfId"), sourceId, targetType, targetId, depth);
+							}	
 						}
 					}
 					if (en.containsKey("C")) {
 						Map<String, String> c = JsonHelper.toMap(en.get("C"));
 						if (c.containsKey("CId")) {
-							ArrayList<String> son = PathFetch.deepCopy(parent);
-							justify(son, "C.CId", c.get("CId"), sourceId, targetType, targetId, depth);
-						}
-							
+							this.justify(parent, "C.CId", c.get("CId"), sourceId, targetType, targetId, depth);
+						}							
 					}
 					if (en.containsKey("F")) {
 						ArrayList<String> f = JsonHelper.toList(en.get("F"));
 						for (String d : f) {
 							Map<String, String> ff = JsonHelper.toMap(d);
 							if (ff.containsKey("FId"))  {
-								ArrayList<String> son = PathFetch.deepCopy(parent);
-								justify(son, "F.FId", ff.get("FId"), sourceId, targetType, targetId, depth);
-							}
-								
+								this.justify(parent, "F.FId", ff.get("FId"), sourceId, targetType, targetId, depth);
+							}		
 						}
 					}
 					if (en.containsKey("J")) {
 						Map<String, String> j = JsonHelper.toMap(en.get("J"));
 						if (j.containsKey("JId")) {
-							ArrayList<String> son = PathFetch.deepCopy(parent);
-							justify(son, "J.JId", j.get("JId"), sourceId, targetType, targetId, depth);
+							this.justify(parent, "J.JId", j.get("JId"), sourceId, targetType, targetId, depth);
 						}
-							
+					}
+					if (!sourceType.equals("Id")) {
+						depth --; parent.remove(Id);
 					}
 				}
 			}
@@ -133,30 +135,35 @@ public class PathFetch {
 	{		
 		if(!cId.equals(sourceId)) {
 			ArrayList<String> cur = PathFetch.deepCopy(param);
-			vis.put(cId, Integer.toString(depth));
 			cur.add(cId);
 			if (cId.equals(targetId)) {
-				PathFetch.ret.add(cur);
-				//syncRet(cur);
-				PathFetch.count ++;
-				System.out.println(cur);
+				this.syncRet(cur);
 			}
-			else if (depth <= 2)
-				doCalculate(cur, cType, cId, targetType, targetId, depth + 1);
-			cur.remove(cId);
+			if (depth <= 2)
+				this.doCalculate(cur, cType, cId, targetType, targetId, depth + 1);
 		}
 	}
 	
-	public void syncRet(ArrayList<String> param)
+	public synchronized void syncRet(ArrayList<String> param)
 	{
-		PathFetch.ret.add(param);
+		ArrayList<String> cur = PathFetch.deepCopy(param);
+		PathFetch.ret.add(cur);
+		PathFetch.count ++;
+		System.out.println(cur);
+		return;
 	}
 	
 	public String fetchContent(String type, String id) 
 	{
+		if(PathFetch.cache.containsKey(id))
+			return PathFetch.cache.get(id);
+		
 		StringBuilder json = new StringBuilder();  
 	    try {  
-	    	URL urlObject = new URL(this.urlHead + this.urlAction + queryParam(type, id));  
+	    	String url = this.urlHead + this.urlAction + this.queryParam(type, id);
+	    	PathFetch.api_count ++;
+	    	//System.out.println(url);
+	    	URL urlObject = new URL(url);  
 	        URLConnection uc = urlObject.openConnection();  
 	        BufferedReader in = new BufferedReader(new InputStreamReader(uc.getInputStream()));  
 	        String inputLine = null;  
@@ -164,6 +171,7 @@ public class PathFetch {
 	        	json.append(inputLine);  
 	        }  
 	        in.close();
+	        cache.put(id, json.toString());
 	    } catch (MalformedURLException e) {  
 	    	e.printStackTrace();  
 	    } catch (IOException e) {  
