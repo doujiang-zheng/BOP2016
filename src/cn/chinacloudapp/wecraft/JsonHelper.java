@@ -5,32 +5,41 @@ import org.json.*;
 
 public class JsonHelper {
 	
-	public static Map<String, String> toMap(String json) throws JSONException
+	public static Map<String, String> toMap(String json)
 	{		
-		//System.out.println("Hello, JsonHelper.toMap(json)!");
-		JSONObject jsonObject = new JSONObject(json);
 		Map result = new HashMap();
-		Iterator iterator = jsonObject.keys();
-		String key = null;
-		String value = null;
-		
-		while(iterator.hasNext()) {
-			key = (String) iterator.next();
-			value = jsonObject.getString(key);
-			result.put(key, value);
+		//System.out.println("Hello, JsonHelper.toMap(json)!");
+		try {
+			JSONObject jsonObject = new JSONObject(json);
+			Iterator iterator = jsonObject.keys();
+			String key = null;
+			String value = null;
+			
+			while(iterator.hasNext()) {
+				key = (String) iterator.next();
+				value = jsonObject.getString(key);
+				result.put(key, value);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 		return result;
 	}
 
-	public static ArrayList<String> toList(String json) throws JSONException
+	public static ArrayList<String> toList(String json)
 	{
 		//System.out.println("Hello, JsonHelper.toList(json)!");
 		ArrayList<String> list = new ArrayList<String>();
-		JSONArray jsonArray = new JSONArray(json);
-		if (jsonArray != null) {
-			for(int i = 0; i < jsonArray.length(); i ++)
-				list.add(jsonArray.getString(i));
+		try {
+			JSONArray jsonArray = new JSONArray(json);
+			if (jsonArray != null) {
+				for(int i = 0; i < jsonArray.length(); i ++)
+					list.add(jsonArray.getString(i));
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
+		
 			
 		return list;
 		//return new ArrayList<String>(JsonHelper.toMap(json).values());
